@@ -4,7 +4,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { workspaces, workspaceMembers, users } from '@/schema';
+import { workspaces, workspaceMembers, users } from '@/lib/db/schema';
 import { eq, and, or } from 'drizzle-orm';
 
 // GET /api/workspaces - List all accessible workspaces

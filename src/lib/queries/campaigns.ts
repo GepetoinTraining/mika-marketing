@@ -1,147 +1,123 @@
 // lib/queries/campaigns.ts
-// Client-side data fetching for campaigns
+// React Query hooks for campaigns
 
-import type { Campaign, LandingPage } from '@/types';
-import type { CampaignWithPerformance } from '@/lib/db/mock';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useWorkspace } from '@/lib/workspace/context';
+import type { Campaign, CampaignWithPerformance, CampaignStatus } from '@/types';
 
-// Re-export types for convenience
-export type { Campaign, LandingPage } from '@/types';
-export type { CampaignWithPerformance } from '@/lib/db/mock';
+export type { Campaign, CampaignWithPerformance, CampaignStatus };
 
-// ===========================================
-// FETCH FUNCTIONS
-// ===========================================
+// Fetch functions
+async function fetchCampaigns(): Promise<CampaignWithPerformance[]> {
+    const response = await fetch('/api/campaigns');
 
-export async function fetchCampaigns(): Promise<CampaignWithPerformance[]> {
-    const res = await fetch('/api/campaigns');
-
-    if (!res.ok) {
+    if (!response.ok) {
         throw new Error('Failed to fetch campaigns');
     }
 
-    return res.json();
+    return response.json();
 }
 
-export async function fetchCampaign(id: string): Promise<CampaignWithPerformance> {
-    const res = await fetch(`/api/campaigns/${id}`);
+async function fetchCampaign(id: string): Promise<CampaignWithPerformance> {
+    const response = await fetch(`/api/campaigns/${id}`);
 
-    if (!res.ok) {
+    if (!response.ok) {
         throw new Error('Failed to fetch campaign');
     }
 
-    return res.json();
+    return response.json();
 }
 
-export async function createCampaign(data: {
-    name: string;
-    description?: string;
-    status?: string;
-    budget?: number;
-    startsAt?: string;
-    endsAt?: string;
-}): Promise<Campaign> {
-    const res = await fetch('/api/campaigns', {
+async function createCampaign(data: Partial<Campaign>): Promise<Campaign> {
+    const response = await fetch('/api/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
     });
 
-    if (!res.ok) {
+    if (!response.ok) {
         throw new Error('Failed to create campaign');
     }
 
-    return res.json();
+    return response.json();
 }
 
-export async function updateCampaign(
-    id: string,
-    data: Partial<Campaign>
-): Promise<Campaign> {
-    const res = await fetch(`/api/campaigns/${id}`, {
+async function updateCampaign(id: string, data: Partial<Campaign>): Promise<Campaign> {
+    const response = await fetch(`/api/campaigns/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
     });
 
-    if (!res.ok) {
+    if (!response.ok) {
         throw new Error('Failed to update campaign');
     }
 
-    return res.json();
+    return response.json();
 }
 
-export async function deleteCampaign(id: string): Promise<void> {
-    const res = await fetch(`/api/campaigns/${id}`, {
+async function deleteCampaign(id: string): Promise<void> {
+    const response = await fetch(`/api/campaigns/${id}`, {
         method: 'DELETE',
     });
 
-    if (!res.ok) {
+    if (!response.ok) {
         throw new Error('Failed to delete campaign');
     }
 }
 
-// ===========================================
-// REACT QUERY HOOKS
-// ===========================================
-
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useWorkspace } from '@/lib/workspace/context';
-
+// Hooks
 export function useCampaigns() {
-    const { workspaceId } = useWorkspace();
+    const { workspace } = useWorkspace();
 
     return useQuery({
-        queryKey: ['campaigns', workspaceId],
+        queryKey: ['campaigns', workspace?.id],
         queryFn: fetchCampaigns,
-        enabled: !!workspaceId,
+        enabled: !!workspace?.id,
         staleTime: 60 * 1000, // 1 minute
     });
 }
 
-export function useCampaign(id: string | null) {
-    const { workspaceId } = useWorkspace();
-
+export function useCampaign(id: string) {
     return useQuery({
-        queryKey: ['campaign', id, workspaceId],
-        queryFn: () => fetchCampaign(id!),
-        enabled: !!id && !!workspaceId,
+        queryKey: ['campaign', id],
+        queryFn: () => fetchCampaign(id),
+        enabled: !!id,
+        staleTime: 30 * 1000,
     });
 }
 
 export function useCreateCampaign() {
     const queryClient = useQueryClient();
-    const { workspaceId } = useWorkspace();
 
     return useMutation({
         mutationFn: createCampaign,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['campaigns', workspaceId] });
+            queryClient.invalidateQueries({ queryKey: ['campaigns'] });
         },
     });
 }
 
 export function useUpdateCampaign() {
     const queryClient = useQueryClient();
-    const { workspaceId } = useWorkspace();
 
     return useMutation({
         mutationFn: ({ id, data }: { id: string; data: Partial<Campaign> }) =>
             updateCampaign(id, data),
-        onSuccess: (_, { id }) => {
-            queryClient.invalidateQueries({ queryKey: ['campaigns', workspaceId] });
-            queryClient.invalidateQueries({ queryKey: ['campaign', id, workspaceId] });
+        onSuccess: (updatedCampaign) => {
+            queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+            queryClient.setQueryData(['campaign', updatedCampaign.id], updatedCampaign);
         },
     });
 }
 
 export function useDeleteCampaign() {
     const queryClient = useQueryClient();
-    const { workspaceId } = useWorkspace();
 
     return useMutation({
         mutationFn: deleteCampaign,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['campaigns', workspaceId] });
+            queryClient.invalidateQueries({ queryKey: ['campaigns'] });
         },
     });
 }

@@ -3,197 +3,203 @@
 import { Lead } from '@/types';
 
 type Stage = {
-    id: Lead['stage'];
-    label: string;
-    color: string;
+  id: Lead['stage'];
+  label: string;
+  color: string;
 };
 
+// Matches leadStageEnum in schema (no 'anonymous' or 'repeat')
 const STAGES: Stage[] = [
-    { id: 'captured', label: 'Captured', color: 'var(--neutral)' },
-    { id: 'engaged', label: 'Engaged', color: 'var(--warning)' },
-    { id: 'qualified', label: 'Qualified', color: 'var(--warning)' },
-    { id: 'opportunity', label: 'Opportunity', color: 'var(--accent)' },
-    { id: 'customer', label: 'Customer', color: 'var(--positive)' },
+  { id: 'captured', label: 'Captured', color: 'var(--neutral)' },
+  { id: 'engaged', label: 'Engaged', color: 'var(--warning)' },
+  { id: 'qualified', label: 'Qualified', color: 'var(--warning)' },
+  { id: 'opportunity', label: 'Opportunity', color: 'var(--accent)' },
+  { id: 'customer', label: 'Customer', color: 'var(--positive)' },
 ];
 
 type Props = {
-    leads: Lead[];
+  leads: Lead[];
 };
 
 export function FunnelView({ leads }: Props) {
-    // Count leads at each stage AND beyond (cumulative from that point)
-    const getStageCounts = () => {
-        const counts: Record<string, number> = {};
-        const stageOrder = STAGES.map(s => s.id);
+  // Helper to safely convert decimal strings to numbers
+  const toNumber = (val: number | string): number => {
+    return typeof val === 'string' ? parseFloat(val) || 0 : val;
+  };
 
-        STAGES.forEach((stage, index) => {
-            // Count leads at this stage or any later stage
-            counts[stage.id] = leads.filter(lead => {
-                const leadStageIndex = stageOrder.indexOf(lead.stage);
-                return leadStageIndex >= index;
-            }).length;
-        });
+  // Count leads at each stage AND beyond (cumulative from that point)
+  const getStageCounts = () => {
+    const counts: Record<string, number> = {};
+    const stageOrder = STAGES.map(s => s.id);
 
-        return counts;
-    };
+    STAGES.forEach((stage, index) => {
+      // Count leads at this stage or any later stage
+      counts[stage.id] = leads.filter(lead => {
+        const leadStageIndex = stageOrder.indexOf(lead.stage);
+        return leadStageIndex >= index;
+      }).length;
+    });
 
-    const counts = getStageCounts();
-    const maxCount = counts['captured'] || 1;
+    return counts;
+  };
 
-    // Calculate conversion rates between stages
-    const getConversionRate = (fromStage: string, toStage: string) => {
-        const from = counts[fromStage] || 0;
-        const to = counts[toStage] || 0;
-        if (from === 0) return 0;
-        return (to / from) * 100;
-    };
+  const counts = getStageCounts();
+  const maxCount = counts['captured'] || 1;
 
-    // Calculate drop-off
-    const getDropOff = (fromStage: string, toStage: string) => {
-        const from = counts[fromStage] || 0;
-        const to = counts[toStage] || 0;
-        return from - to;
-    };
+  // Calculate conversion rates between stages
+  const getConversionRate = (fromStage: string, toStage: string) => {
+    const from = counts[fromStage] || 0;
+    const to = counts[toStage] || 0;
+    if (from === 0) return 0;
+    return (to / from) * 100;
+  };
 
-    const getDropOffRate = (fromStage: string, toStage: string) => {
-        const from = counts[fromStage] || 0;
-        const dropOff = getDropOff(fromStage, toStage);
-        if (from === 0) return 0;
-        return (dropOff / from) * 100;
-    };
+  // Calculate drop-off
+  const getDropOff = (fromStage: string, toStage: string) => {
+    const from = counts[fromStage] || 0;
+    const to = counts[toStage] || 0;
+    return from - to;
+  };
 
-    // Overall conversion rate
-    const overallConversion = maxCount > 0
-        ? ((counts['customer'] || 0) / maxCount * 100).toFixed(1)
-        : '0';
+  const getDropOffRate = (fromStage: string, toStage: string) => {
+    const from = counts[fromStage] || 0;
+    const dropOff = getDropOff(fromStage, toStage);
+    if (from === 0) return 0;
+    return (dropOff / from) * 100;
+  };
 
-    // Total value in pipeline
-    const totalValue = leads.reduce((sum, l) => sum + l.lifetimeValue, 0);
-    const customerValue = leads
-        .filter(l => l.stage === 'customer' || l.stage === 'repeat')
-        .reduce((sum, l) => sum + l.lifetimeValue, 0);
+  // Overall conversion rate
+  const overallConversion = maxCount > 0
+    ? ((counts['customer'] || 0) / maxCount * 100).toFixed(1)
+    : '0';
 
-    return (
-        <div className="funnel-container">
-            {/* Summary Stats */}
-            <div className="funnel-summary">
-                <div className="summary-stat">
-                    <span className="summary-label">TOTAL LEADS</span>
-                    <span className="summary-value mono">{maxCount}</span>
+  // Total value in pipeline
+  const totalValue = leads.reduce((sum, l) => sum + toNumber(l.lifetimeValue), 0);
+  const customerValue = leads
+    .filter(l => l.stage === 'customer')
+    .reduce((sum, l) => sum + toNumber(l.lifetimeValue), 0);
+
+  return (
+    <div className="funnel-container">
+      {/* Summary Stats */}
+      <div className="funnel-summary">
+        <div className="summary-stat">
+          <span className="summary-label">TOTAL LEADS</span>
+          <span className="summary-value mono">{maxCount}</span>
+        </div>
+        <div className="summary-stat">
+          <span className="summary-label">CUSTOMERS</span>
+          <span className="summary-value mono positive">{counts['customer'] || 0}</span>
+        </div>
+        <div className="summary-stat">
+          <span className="summary-label">OVERALL CVR</span>
+          <span className="summary-value mono positive">{overallConversion}%</span>
+        </div>
+        <div className="summary-stat">
+          <span className="summary-label">PIPELINE VALUE</span>
+          <span className="summary-value mono">R$ {totalValue.toLocaleString('pt-BR')}</span>
+        </div>
+        <div className="summary-stat">
+          <span className="summary-label">CUSTOMER LTV</span>
+          <span className="summary-value mono positive">R$ {customerValue.toLocaleString('pt-BR')}</span>
+        </div>
+      </div>
+
+      {/* Funnel Visualization */}
+      <div className="funnel">
+        {STAGES.map((stage, index) => {
+          const count = counts[stage.id] || 0;
+          const width = maxCount > 0 ? (count / maxCount) * 100 : 0;
+          const nextStage = STAGES[index + 1];
+
+          const convRate = nextStage ? getConversionRate(stage.id, nextStage.id) : null;
+          const dropOff = nextStage ? getDropOff(stage.id, nextStage.id) : null;
+          const dropOffRate = nextStage ? getDropOffRate(stage.id, nextStage.id) : null;
+
+          return (
+            <div key={stage.id} className="funnel-row">
+              {/* Stage Bar */}
+              <div className="funnel-stage">
+                <div className="stage-info">
+                  <span className="stage-dot" style={{ background: stage.color }} />
+                  <span className="stage-name">{stage.label}</span>
                 </div>
-                <div className="summary-stat">
-                    <span className="summary-label">CUSTOMERS</span>
-                    <span className="summary-value mono positive">{counts['customer'] || 0}</span>
+
+                <div className="stage-bar-container">
+                  <div
+                    className="stage-bar"
+                    style={{
+                      width: `${width}%`,
+                      background: stage.color,
+                    }}
+                  />
+                  <div className="stage-bar-bg" />
                 </div>
-                <div className="summary-stat">
-                    <span className="summary-label">OVERALL CVR</span>
-                    <span className="summary-value mono positive">{overallConversion}%</span>
+
+                <div className="stage-metrics">
+                  <span className="stage-count mono">{count}</span>
+                  <span className="stage-percent mono muted">
+                    {((count / maxCount) * 100).toFixed(0)}%
+                  </span>
                 </div>
-                <div className="summary-stat">
-                    <span className="summary-label">PIPELINE VALUE</span>
-                    <span className="summary-value mono">R$ {totalValue.toLocaleString('pt-BR')}</span>
+              </div>
+
+              {/* Drop-off Indicator */}
+              {nextStage && dropOff !== null && dropOff > 0 && (
+                <div className="drop-off">
+                  <div className="drop-off-line" />
+                  <div className="drop-off-stats">
+                    <span className="drop-off-count mono negative">−{dropOff}</span>
+                    <span className="drop-off-rate mono negative">
+                      {dropOffRate?.toFixed(1)}% lost
+                    </span>
+                    <span className="drop-off-arrow">↓</span>
+                    <span className="conv-rate mono">
+                      {convRate?.toFixed(1)}% convert
+                    </span>
+                  </div>
                 </div>
-                <div className="summary-stat">
-                    <span className="summary-label">CUSTOMER LTV</span>
-                    <span className="summary-value mono positive">R$ {customerValue.toLocaleString('pt-BR')}</span>
-                </div>
+              )}
             </div>
+          );
+        })}
+      </div>
 
-            {/* Funnel Visualization */}
-            <div className="funnel">
-                {STAGES.map((stage, index) => {
-                    const count = counts[stage.id] || 0;
-                    const width = maxCount > 0 ? (count / maxCount) * 100 : 0;
-                    const nextStage = STAGES[index + 1];
+      {/* Leaky Bucket Analysis */}
+      <div className="leak-analysis">
+        <h3 className="analysis-title">BIGGEST LEAKS</h3>
+        <div className="leak-items">
+          {STAGES.slice(0, -1).map((stage, index) => {
+            const nextStage = STAGES[index + 1];
+            const dropOff = getDropOff(stage.id, nextStage.id);
+            const dropOffRate = getDropOffRate(stage.id, nextStage.id);
 
-                    const convRate = nextStage ? getConversionRate(stage.id, nextStage.id) : null;
-                    const dropOff = nextStage ? getDropOff(stage.id, nextStage.id) : null;
-                    const dropOffRate = nextStage ? getDropOffRate(stage.id, nextStage.id) : null;
-
-                    return (
-                        <div key={stage.id} className="funnel-row">
-                            {/* Stage Bar */}
-                            <div className="funnel-stage">
-                                <div className="stage-info">
-                                    <span className="stage-dot" style={{ background: stage.color }} />
-                                    <span className="stage-name">{stage.label}</span>
-                                </div>
-
-                                <div className="stage-bar-container">
-                                    <div
-                                        className="stage-bar"
-                                        style={{
-                                            width: `${width}%`,
-                                            background: stage.color,
-                                        }}
-                                    />
-                                    <div className="stage-bar-bg" />
-                                </div>
-
-                                <div className="stage-metrics">
-                                    <span className="stage-count mono">{count}</span>
-                                    <span className="stage-percent mono muted">
-                                        {((count / maxCount) * 100).toFixed(0)}%
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Drop-off Indicator */}
-                            {nextStage && dropOff !== null && dropOff > 0 && (
-                                <div className="drop-off">
-                                    <div className="drop-off-line" />
-                                    <div className="drop-off-stats">
-                                        <span className="drop-off-count mono negative">−{dropOff}</span>
-                                        <span className="drop-off-rate mono negative">
-                                            {dropOffRate?.toFixed(1)}% lost
-                                        </span>
-                                        <span className="drop-off-arrow">↓</span>
-                                        <span className="conv-rate mono">
-                                            {convRate?.toFixed(1)}% convert
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* Leaky Bucket Analysis */}
-            <div className="leak-analysis">
-                <h3 className="analysis-title">BIGGEST LEAKS</h3>
-                <div className="leak-items">
-                    {STAGES.slice(0, -1).map((stage, index) => {
-                        const nextStage = STAGES[index + 1];
-                        const dropOff = getDropOff(stage.id, nextStage.id);
-                        const dropOffRate = getDropOffRate(stage.id, nextStage.id);
-
-                        return {
-                            from: stage,
-                            to: nextStage,
-                            dropOff,
-                            dropOffRate
-                        };
-                    })
-                        .sort((a, b) => b.dropOff - a.dropOff)
-                        .slice(0, 3)
-                        .map(({ from, to, dropOff, dropOffRate }) => (
-                            <div key={from.id} className="leak-item">
-                                <div className="leak-stages">
-                                    <span style={{ color: from.color }}>{from.label}</span>
-                                    <span className="leak-arrow">→</span>
-                                    <span style={{ color: to.color }}>{to.label}</span>
-                                </div>
-                                <div className="leak-stats">
-                                    <span className="leak-count mono negative">−{dropOff} leads</span>
-                                    <span className="leak-rate mono negative">{dropOffRate.toFixed(1)}%</span>
-                                </div>
-                            </div>
-                        ))}
+            return {
+              from: stage,
+              to: nextStage,
+              dropOff,
+              dropOffRate
+            };
+          })
+            .sort((a, b) => b.dropOff - a.dropOff)
+            .slice(0, 3)
+            .map(({ from, to, dropOff, dropOffRate }) => (
+              <div key={from.id} className="leak-item">
+                <div className="leak-stages">
+                  <span style={{ color: from.color }}>{from.label}</span>
+                  <span className="leak-arrow">→</span>
+                  <span style={{ color: to.color }}>{to.label}</span>
                 </div>
-            </div>
+                <div className="leak-stats">
+                  <span className="leak-count mono negative">−{dropOff} leads</span>
+                  <span className="leak-rate mono negative">{dropOffRate.toFixed(1)}%</span>
+                </div>
+              </div>
+            ))}
+        </div>
+      </div>
 
-            <style jsx>{`
+      <style jsx>{`
         .funnel-container {
           max-width: 900px;
         }
@@ -408,6 +414,6 @@ export function FunnelView({ leads }: Props) {
           background: rgba(255, 68, 68, 0.1);
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }

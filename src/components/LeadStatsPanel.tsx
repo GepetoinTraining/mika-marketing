@@ -4,171 +4,165 @@ import { Lead } from '@/types';
 import { IconX, IconMail, IconPhone, IconTag, IconPlus } from '@tabler/icons-react';
 
 type Props = {
-    lead: Lead;
-    onClose: () => void;
+  lead: Lead;
+  onClose: () => void;
 };
 
-const STAGE_INFO = {
-    anonymous: { label: 'Anonymous', color: 'var(--text-muted)' },
-    captured: { label: 'Captured', color: 'var(--neutral)' },
-    engaged: { label: 'Engaged', color: 'var(--warning)' },
-    qualified: { label: 'Qualified', color: 'var(--warning)' },
-    opportunity: { label: 'Opportunity', color: 'var(--accent)' },
-    customer: { label: 'Customer', color: 'var(--positive)' },
-    repeat: { label: 'Repeat Buyer', color: 'var(--positive)' },
-    churned: { label: 'Churned', color: 'var(--negative)' },
+// DB stages only - no 'anonymous' or 'repeat'
+const STAGE_INFO: Record<Lead['stage'], { label: string; color: string }> = {
+  captured: { label: 'Captured', color: 'var(--neutral)' },
+  engaged: { label: 'Engaged', color: 'var(--warning)' },
+  qualified: { label: 'Qualified', color: 'var(--warning)' },
+  opportunity: { label: 'Opportunity', color: 'var(--accent)' },
+  customer: { label: 'Customer', color: 'var(--positive)' },
+  churned: { label: 'Churned', color: 'var(--negative)' },
 };
 
 export function LeadStatsPanel({ lead, onClose }: Props) {
-    const stage = STAGE_INFO[lead.stage];
+  const stage = STAGE_INFO[lead.stage];
 
-    const formatDate = (date: string) => {
-        return new Date(date).toLocaleDateString('pt-BR', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-        });
-    };
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
 
-    const formatValue = (n: number) => {
-        return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-    };
+  const formatValue = (n: number | string) => {
+    const num = typeof n === 'string' ? parseFloat(n) : n;
+    return 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  };
 
-    const getInitials = (name?: string, email?: string) => {
-        if (name) {
-            return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-        }
-        return email?.slice(0, 2).toUpperCase() || '??';
-    };
+  const getInitials = (name?: string | null, email?: string) => {
+    if (name) {
+      return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+    }
+    return email?.slice(0, 2).toUpperCase() || '??';
+  };
 
-    return (
-        <div className="panel-content">
-            {/* Header */}
-            <div className="panel-header">
-                <div className="panel-title-row">
-                    <div className="lead-identity">
-                        <div className="lead-avatar">
-                            {getInitials(lead.name, lead.email)}
-                        </div>
-                        <div>
-                            <h2 className="panel-title">{lead.name || 'Unknown'}</h2>
-                            <div className="lead-stage" style={{ color: stage.color }}>
-                                <span className="stage-dot" style={{ background: stage.color }} />
-                                {stage.label}
-                            </div>
-                        </div>
-                    </div>
-                    <button className="panel-close" onClick={onClose}>
-                        <IconX size={18} />
-                    </button>
-                </div>
+  return (
+    <div className="panel-content">
+      {/* Header */}
+      <div className="panel-header">
+        <div className="panel-title-row">
+          <div className="lead-identity">
+            <div className="lead-avatar">
+              {getInitials(lead.name, lead.email)}
             </div>
-
-            {/* Contact */}
-            <div className="metrics-section">
-                <h3 className="section-title">CONTACT</h3>
-                <div className="contact-list">
-                    <a href={`mailto:${lead.email}`} className="contact-item">
-                        <IconMail size={14} />
-                        <span className="mono">{lead.email}</span>
-                    </a>
-                    {lead.phone && (
-                        <a href={`tel:${lead.phone}`} className="contact-item">
-                            <IconPhone size={14} />
-                            <span className="mono">{lead.phone}</span>
-                        </a>
-                    )}
-                </div>
+            <div>
+              <h2 className="panel-title">{lead.name || 'Unknown'}</h2>
+              <div className="lead-stage" style={{ color: stage.color }}>
+                <span className="stage-dot" style={{ background: stage.color }} />
+                {stage.label}
+              </div>
             </div>
+          </div>
+          <button className="panel-close" onClick={onClose}>
+            <IconX size={18} />
+          </button>
+        </div>
+      </div>
 
-            {/* Scores */}
-            <div className="metrics-section">
-                <h3 className="section-title">LEAD SCORE</h3>
-                <div className="score-display">
-                    <div className="score-total mono">{lead.totalScore}</div>
-                    <div className="score-breakdown">
-                        <div className="score-item">
-                            <span className="score-label">Behavior</span>
-                            <span className="score-value mono">{lead.behaviorScore}</span>
-                        </div>
-                        <div className="score-item">
-                            <span className="score-label">Demographic</span>
-                            <span className="score-value mono">{lead.demographicScore}</span>
-                        </div>
-                    </div>
-                </div>
+      {/* Contact */}
+      <div className="metrics-section">
+        <h3 className="section-title">CONTACT</h3>
+        <div className="contact-list">
+          <a href={`mailto:${lead.email}`} className="contact-item">
+            <IconMail size={14} />
+            <span className="mono">{lead.email}</span>
+          </a>
+          {lead.phone && (
+            <a href={`tel:${lead.phone}`} className="contact-item">
+              <IconPhone size={14} />
+              <span className="mono">{lead.phone}</span>
+            </a>
+          )}
+        </div>
+      </div>
+
+      {/* Scores */}
+      <div className="metrics-section">
+        <h3 className="section-title">LEAD SCORE</h3>
+        <div className="score-display">
+          <div className="score-total mono">{lead.totalScore}</div>
+          <div className="score-breakdown">
+            <div className="score-item">
+              <span className="score-label">Behavior</span>
+              <span className="score-value mono">{lead.behaviorScore}</span>
             </div>
-
-            {/* Revenue */}
-            <div className="metrics-section">
-                <h3 className="section-title">REVENUE</h3>
-                <div className="stat-rows">
-                    <div className="stat-row">
-                        <span className="stat-label">Lifetime Value</span>
-                        <span className={`stat-value mono ${lead.lifetimeValue > 0 ? 'positive' : ''}`}>
-                            {formatValue(lead.lifetimeValue)}
-                        </span>
-                    </div>
-                    <div className="stat-row">
-                        <span className="stat-label">Purchases</span>
-                        <span className="stat-value mono">{lead.purchaseCount}</span>
-                    </div>
-                </div>
+            <div className="score-item">
+              <span className="score-label">Demographic</span>
+              <span className="score-value mono">{lead.demographicScore}</span>
             </div>
+          </div>
+        </div>
+      </div>
 
-            {/* Attribution */}
-            <div className="metrics-section">
-                <h3 className="section-title">ATTRIBUTION</h3>
-                <div className="stat-rows">
-                    {lead.firstSource && (
-                        <div className="stat-row">
-                            <span className="stat-label">Source</span>
-                            <span className="stat-value mono">{lead.firstSource}</span>
-                        </div>
-                    )}
-                    {lead.firstMedium && (
-                        <div className="stat-row">
-                            <span className="stat-label">Medium</span>
-                            <span className="stat-value mono">{lead.firstMedium}</span>
-                        </div>
-                    )}
-                    {lead.capturedVia && (
-                        <div className="stat-row">
-                            <span className="stat-label">Captured Via</span>
-                            <span className="stat-value mono">{lead.capturedVia}</span>
-                        </div>
-                    )}
-                    <div className="stat-row">
-                        <span className="stat-label">Created</span>
-                        <span className="stat-value mono">{formatDate(lead.createdAt)}</span>
-                    </div>
-                </div>
+      {/* Revenue */}
+      <div className="metrics-section">
+        <h3 className="section-title">REVENUE</h3>
+        <div className="stat-rows">
+          <div className="stat-row">
+            <span className="stat-label">Lifetime Value</span>
+            <span className={`stat-value mono ${Number(lead.lifetimeValue) > 0 ? 'positive' : ''}`}>
+              {formatValue(lead.lifetimeValue)}
+            </span>
+          </div>
+          <div className="stat-row">
+            <span className="stat-label">Purchases</span>
+            <span className="stat-value mono">{lead.purchaseCount}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Attribution */}
+      <div className="metrics-section">
+        <h3 className="section-title">ATTRIBUTION</h3>
+        <div className="stat-rows">
+          {lead.firstSource && (
+            <div className="stat-row">
+              <span className="stat-label">Source</span>
+              <span className="stat-value mono">{lead.firstSource}</span>
             </div>
-
-            {/* Tags */}
-            <div className="metrics-section">
-                <h3 className="section-title">
-                    <IconTag size={12} />
-                    TAGS
-                </h3>
-                <div className="tags-container">
-                    {lead.tags.map(tag => (
-                        <span key={tag} className="tag">{tag}</span>
-                    ))}
-                    <button className="tag tag-add">
-                        <IconPlus size={10} />
-                        Add
-                    </button>
-                </div>
+          )}
+          {lead.firstMedium && (
+            <div className="stat-row">
+              <span className="stat-label">Medium</span>
+              <span className="stat-value mono">{lead.firstMedium}</span>
             </div>
+          )}
+          <div className="stat-row">
+            <span className="stat-label">Created</span>
+            <span className="stat-value mono">{formatDate(lead.createdAt)}</span>
+          </div>
+        </div>
+      </div>
 
-            {/* Actions */}
-            <div className="panel-actions">
-                <button className="btn-primary">Send Email</button>
-                <button className="btn-secondary">View Activity</button>
-            </div>
+      {/* Tags */}
+      <div className="metrics-section">
+        <h3 className="section-title">
+          <IconTag size={12} />
+          TAGS
+        </h3>
+        <div className="tags-container">
+          {lead.tags.map(tag => (
+            <span key={tag} className="tag">{tag}</span>
+          ))}
+          <button className="tag tag-add">
+            <IconPlus size={10} />
+            Add
+          </button>
+        </div>
+      </div>
 
-            <style jsx>{`
+      {/* Actions */}
+      <div className="panel-actions">
+        <button className="btn-primary">Send Email</button>
+        <button className="btn-secondary">View Activity</button>
+      </div>
+
+      <style jsx>{`
         .panel-content {
           display: flex;
           flex-direction: column;
@@ -397,6 +391,6 @@ export function LeadStatsPanel({ lead, onClose }: Props) {
           color: var(--text-primary);
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }

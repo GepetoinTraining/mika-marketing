@@ -5,7 +5,7 @@ import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { Webhook } from 'svix';
 import { db } from '@/lib/db';
-import { users, workspaces, workspaceMembers } from '@/schema';
+import { users, workspaces, workspaceMembers } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 // Clerk webhook event types we care about

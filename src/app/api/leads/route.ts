@@ -1,259 +1,259 @@
+// app/api/leads/route.ts
+// Workspace-scoped leads API
+
+import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
-import { db, schema } from '@/lib/db';
-import { eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { leads, leadStageHistory, visitors } from '@/lib/db/schema';
+import { eq, desc, ilike, or, sql } from 'drizzle-orm';
 
-type LeadPayload = {
-    // Required
-    email: string;
+// Helper to get workspace ID from request
+function getWorkspaceId(req: NextRequest): string | null {
+    return req.headers.get('x-workspace-id');
+}
 
-    // Optional identity
-    name?: string;
-    phone?: string;
-
-    // Link to visitor
-    visitorId?: string;
-    cookieId?: string;
-
-    // Attribution
-    capturedVia?: string; // e.g., "ebook-download", "newsletter"
-    landingPageId?: string;
-    campaignId?: string;
-    utm?: {
-        source?: string;
-        medium?: string;
-        campaign?: string;
-    };
-
-    // Custom data
-    customFields?: Record<string, unknown>;
-    tags?: string[];
-};
-
-export async function POST(request: NextRequest) {
+// GET /api/leads - List leads for current workspace
+export async function GET(req: NextRequest) {
     try {
-        const payload: LeadPayload = await request.json();
+        const { userId: clerkId } = await auth();
 
-        if (!payload.email) {
+        if (!clerkId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const workspaceId = getWorkspaceId(req);
+
+        if (!workspaceId) {
             return NextResponse.json(
-                { success: false, error: 'Email is required' },
+                { error: 'No workspace selected' },
                 { status: 400 }
             );
         }
 
-        // Normalize email
-        const email = payload.email.toLowerCase().trim();
+        // Get query params for filtering
+        const { searchParams } = new URL(req.url);
+        const search = searchParams.get('search');
+        const stage = searchParams.get('stage');
 
-        // Check if lead already exists
-        const existingLead = await db.query.leads.findFirst({
-            where: eq(schema.leads.email, email),
-        });
+        // Build query
+        let query = db
+            .select({
+                id: leads.id,
+                workspaceId: leads.workspaceId,
+                visitorId: leads.visitorId,
+                email: leads.email,
+                name: leads.name,
+                phone: leads.phone,
+                stage: leads.stage,
+                stageChangedAt: leads.stageChangedAt,
+                behaviorScore: leads.behaviorScore,
+                demographicScore: leads.demographicScore,
+                totalScore: leads.totalScore,
+                firstSource: leads.firstSource,
+                firstMedium: leads.firstMedium,
+                firstCampaignId: leads.firstCampaignId,
+                lastSource: leads.lastSource,
+                lastMedium: leads.lastMedium,
+                lastCampaignId: leads.lastCampaignId,
+                lifetimeValue: leads.lifetimeValue,
+                purchaseCount: leads.purchaseCount,
+                customFields: leads.customFields,
+                tags: leads.tags,
+                convertedAt: leads.convertedAt,
+                createdAt: leads.createdAt,
+                updatedAt: leads.updatedAt,
+            })
+            .from(leads)
+            .where(eq(leads.workspaceId, workspaceId))
+            .orderBy(desc(leads.createdAt))
+            .$dynamic();
 
-        if (existingLead) {
-            // Update existing lead with new info
-            const [updated] = await db.update(schema.leads)
-                .set({
-                    name: payload.name || existingLead.name,
-                    phone: payload.phone || existingLead.phone,
-                    lastSource: payload.utm?.source || existingLead.lastSource,
-                    lastMedium: payload.utm?.medium || existingLead.lastMedium,
-                    lastCampaign: payload.utm?.campaign || existingLead.lastCampaign,
-                    customFields: {
-                        ...(existingLead.customFields as Record<string, unknown> || {}),
-                        ...(payload.customFields || {}),
-                    },
-                    tags: [...new Set([...(existingLead.tags || []), ...(payload.tags || [])])],
-                    updatedAt: new Date(),
-                })
-                .where(eq(schema.leads.id, existingLead.id))
-                .returning();
+        const result = await query;
 
-            // Log re-capture event
-            await db.insert(schema.events).values({
-                type: 'lead_captured',
-                name: 'lead_recaptured',
-                leadId: existingLead.id,
-                visitorId: payload.visitorId,
-                landingPageId: payload.landingPageId,
-                campaignId: payload.campaignId,
-                metadata: {
-                    capturedVia: payload.capturedVia,
-                    isReturning: true,
-                },
-            });
+        // Transform for frontend
+        const transformedLeads = result.map(lead => ({
+            ...lead,
+            lifetimeValue: Number(lead.lifetimeValue) || 0,
+            tags: lead.tags || [],
+            customFields: lead.customFields || {},
+        }));
 
-            // Link visitor to lead if provided
-            if (payload.visitorId) {
-                await db.update(schema.visitors)
-                    .set({
-                        convertedToLeadId: existingLead.id,
-                        convertedAt: new Date(),
-                    })
-                    .where(eq(schema.visitors.id, payload.visitorId));
-            }
-
-            return NextResponse.json({
-                success: true,
-                leadId: existingLead.id,
-                isNew: false,
-                message: 'Lead updated',
-            });
-        }
-
-        // Resolve visitor ID from cookie if needed
-        let visitorId = payload.visitorId;
-        if (!visitorId && payload.cookieId) {
-            const visitor = await db.query.visitors.findFirst({
-                where: eq(schema.visitors.cookieId, payload.cookieId),
-            });
-            if (visitor) visitorId = visitor.id;
-        }
-
-        // Get visitor's first-touch attribution
-        let firstAttribution = {
-            source: payload.utm?.source,
-            medium: payload.utm?.medium,
-            campaign: payload.utm?.campaign,
-        };
-
-        if (visitorId) {
-            const visitor = await db.query.visitors.findFirst({
-                where: eq(schema.visitors.id, visitorId),
-            });
-            if (visitor) {
-                firstAttribution = {
-                    source: visitor.firstSource || firstAttribution.source,
-                    medium: visitor.firstMedium || firstAttribution.medium,
-                    campaign: visitor.firstCampaign || firstAttribution.campaign,
-                };
-            }
-        }
-
-        // Create new lead
-        const [newLead] = await db.insert(schema.leads).values({
-            email,
-            name: payload.name,
-            phone: payload.phone,
-            visitorId,
-
-            // First touch (from visitor or current)
-            firstSource: firstAttribution.source,
-            firstMedium: firstAttribution.medium,
-            firstCampaign: firstAttribution.campaign,
-
-            // Last touch (current)
-            lastSource: payload.utm?.source,
-            lastMedium: payload.utm?.medium,
-            lastCampaign: payload.utm?.campaign,
-
-            // Capture context
-            capturedVia: payload.capturedVia,
-            capturedLandingPageId: payload.landingPageId,
-
-            // Custom
-            customFields: payload.customFields || {},
-            tags: payload.tags || [],
-
-            // Initial stage
-            stage: 'captured',
-            stageChangedAt: new Date(),
-        }).returning();
-
-        // Link visitor to lead
-        if (visitorId) {
-            await db.update(schema.visitors)
-                .set({
-                    convertedToLeadId: newLead.id,
-                    convertedAt: new Date(),
-                })
-                .where(eq(schema.visitors.id, visitorId));
-        }
-
-        // Log capture event
-        await db.insert(schema.events).values({
-            type: 'lead_captured',
-            leadId: newLead.id,
-            visitorId,
-            landingPageId: payload.landingPageId,
-            campaignId: payload.campaignId,
-            metadata: {
-                capturedVia: payload.capturedVia,
-                isNew: true,
-            },
-        });
-
-        // Update landing page conversion count
-        if (payload.landingPageId) {
-            await db.execute(
-                `UPDATE landing_pages 
-         SET total_conversions = total_conversions + 1,
-             updated_at = NOW()
-         WHERE id = '${payload.landingPageId}'`
+        // Apply search filter in JS (could optimize with SQL later)
+        let filtered = transformedLeads;
+        if (search) {
+            const q = search.toLowerCase();
+            filtered = filtered.filter(lead =>
+                lead.email.toLowerCase().includes(q) ||
+                lead.name?.toLowerCase().includes(q) ||
+                lead.tags.some((t: string) => t.toLowerCase().includes(q))
             );
         }
 
-        // Update campaign lead count
-        if (payload.campaignId) {
-            await db.execute(
-                `UPDATE campaigns 
-         SET total_leads = total_leads + 1,
-             updated_at = NOW()
-         WHERE id = '${payload.campaignId}'`
-            );
+        if (stage && stage !== 'all') {
+            filtered = filtered.filter(lead => lead.stage === stage);
         }
 
-        return NextResponse.json({
-            success: true,
-            leadId: newLead.id,
-            isNew: true,
-            message: 'Lead captured',
-        });
-
+        return NextResponse.json(filtered);
     } catch (error) {
-        console.error('Lead capture error:', error);
+        console.error('Error fetching leads:', error);
         return NextResponse.json(
-            { success: false, error: 'Failed to capture lead' },
+            { error: 'Failed to fetch leads' },
             { status: 500 }
         );
     }
 }
 
-// Get lead by ID or email
-export async function GET(request: NextRequest) {
-    const searchParams = request.nextUrl.searchParams;
-    const id = searchParams.get('id');
-    const email = searchParams.get('email');
-
-    if (!id && !email) {
-        return NextResponse.json(
-            { error: 'Provide id or email parameter' },
-            { status: 400 }
-        );
-    }
-
+// POST /api/leads - Create a new lead
+export async function POST(req: NextRequest) {
     try {
-        const lead = await db.query.leads.findFirst({
-            where: id
-                ? eq(schema.leads.id, id)
-                : eq(schema.leads.email, email!.toLowerCase().trim()),
-            with: {
-                visitor: true,
-                capturedLandingPage: true,
-            },
+        const { userId: clerkId } = await auth();
+
+        if (!clerkId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const workspaceId = getWorkspaceId(req);
+
+        if (!workspaceId) {
+            return NextResponse.json(
+                { error: 'No workspace selected' },
+                { status: 400 }
+            );
+        }
+
+        const body = await req.json();
+        const {
+            email,
+            name,
+            phone,
+            stage = 'captured',
+            source,
+            medium,
+            campaignId,
+            tags = [],
+            customFields = {},
+            visitorId,
+        } = body;
+
+        if (!email) {
+            return NextResponse.json(
+                { error: 'Email is required' },
+                { status: 400 }
+            );
+        }
+
+        // Insert lead
+        const [lead] = await db.insert(leads).values({
+            workspaceId,
+            email,
+            name: name || null,
+            phone: phone || null,
+            stage,
+            visitorId: visitorId || null,
+            firstSource: source || null,
+            firstMedium: medium || null,
+            firstCampaignId: campaignId || null,
+            lastSource: source || null,
+            lastMedium: medium || null,
+            lastCampaignId: campaignId || null,
+            tags,
+            customFields,
+        }).returning();
+
+        // Record stage history
+        await db.insert(leadStageHistory).values({
+            workspaceId,
+            leadId: lead.id,
+            toStage: stage,
+            changedBy: 'system',
+            reason: 'Lead created',
         });
 
-        if (!lead) {
+        return NextResponse.json({
+            ...lead,
+            lifetimeValue: 0,
+            tags: lead.tags || [],
+        }, { status: 201 });
+    } catch (error) {
+        console.error('Error creating lead:', error);
+        return NextResponse.json(
+            { error: 'Failed to create lead' },
+            { status: 500 }
+        );
+    }
+}
+
+// PATCH /api/leads - Update lead stage (bulk or single)
+export async function PATCH(req: NextRequest) {
+    try {
+        const { userId: clerkId } = await auth();
+
+        if (!clerkId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const workspaceId = getWorkspaceId(req);
+
+        if (!workspaceId) {
+            return NextResponse.json(
+                { error: 'No workspace selected' },
+                { status: 400 }
+            );
+        }
+
+        const body = await req.json();
+        const { leadId, stage, reason } = body;
+
+        if (!leadId || !stage) {
+            return NextResponse.json(
+                { error: 'leadId and stage are required' },
+                { status: 400 }
+            );
+        }
+
+        // Get current lead
+        const [currentLead] = await db
+            .select()
+            .from(leads)
+            .where(eq(leads.id, leadId));
+
+        if (!currentLead || currentLead.workspaceId !== workspaceId) {
             return NextResponse.json(
                 { error: 'Lead not found' },
                 { status: 404 }
             );
         }
 
-        return NextResponse.json({ success: true, lead });
+        // Update lead
+        const [updatedLead] = await db
+            .update(leads)
+            .set({
+                stage,
+                stageChangedAt: new Date(),
+                updatedAt: new Date(),
+            })
+            .where(eq(leads.id, leadId))
+            .returning();
 
+        // Record stage change
+        await db.insert(leadStageHistory).values({
+            workspaceId,
+            leadId,
+            fromStage: currentLead.stage,
+            toStage: stage,
+            changedBy: clerkId,
+            reason: reason || null,
+        });
+
+        return NextResponse.json({
+            ...updatedLead,
+            lifetimeValue: Number(updatedLead.lifetimeValue) || 0,
+            tags: updatedLead.tags || [],
+        });
     } catch (error) {
-        console.error('Lead fetch error:', error);
+        console.error('Error updating lead:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch lead' },
+            { error: 'Failed to update lead' },
             { status: 500 }
         );
     }

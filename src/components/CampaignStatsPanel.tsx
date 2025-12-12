@@ -1,230 +1,226 @@
 'use client';
 
 import { Campaign, LandingPage } from '@/types';
-import { IconX, IconExternalLink, IconCopy, IconCalendar } from '@tabler/icons-react';
+import { toNumber, formatCurrency, formatDate } from '@/lib/utils/convert';
+import { IconX, IconCopy, IconCalendar } from '@tabler/icons-react';
 
 type Props = {
-    campaign: Campaign;
-    linkedPages: LandingPage[];
-    onClose: () => void;
-    onSelectPage?: (page: LandingPage) => void;
+  campaign: Campaign;
+  linkedPages: LandingPage[];
+  onClose: () => void;
+  onSelectPage?: (page: LandingPage) => void;
 };
 
 export function CampaignStatsPanel({ campaign, linkedPages, onClose, onSelectPage }: Props) {
-    const formatCurrency = (n: number) => {
-        return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-    };
+  // Convert decimals
+  const spent = toNumber(campaign.spent);
+  const budget = toNumber(campaign.budget);
+  const totalRevenue = toNumber(campaign.totalRevenue);
+  const totalVisitors = campaign.totalVisitors ?? 0;
+  const totalLeads = campaign.totalLeads ?? 0;
+  const totalCustomers = campaign.totalCustomers ?? 0;
 
-    const formatDate = (date?: string) => {
-        if (!date) return '—';
-        return new Date(date).toLocaleDateString('pt-BR', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-        });
-    };
+  // Calculations
+  const roas = spent > 0
+    ? (totalRevenue / spent).toFixed(2)
+    : '—';
 
-    // Calculations
-    const roas = campaign.spent > 0
-        ? (campaign.totalRevenue / campaign.spent).toFixed(2)
-        : '—';
+  const cpl = spent > 0 && totalLeads > 0
+    ? spent / totalLeads
+    : 0;
 
-    const cpl = campaign.spent > 0 && campaign.totalLeads > 0
-        ? campaign.spent / campaign.totalLeads
-        : 0;
+  const cpa = spent > 0 && totalCustomers > 0
+    ? spent / totalCustomers
+    : 0;
 
-    const cpa = campaign.spent > 0 && campaign.totalCustomers > 0
-        ? campaign.spent / campaign.totalCustomers
-        : 0;
+  const visitorToLead = totalVisitors > 0
+    ? ((totalLeads / totalVisitors) * 100).toFixed(1)
+    : '0';
 
-    const visitorToLead = campaign.totalVisitors > 0
-        ? ((campaign.totalLeads / campaign.totalVisitors) * 100).toFixed(1)
-        : '0';
+  const leadToCustomer = totalLeads > 0
+    ? ((totalCustomers / totalLeads) * 100).toFixed(1)
+    : '0';
 
-    const leadToCustomer = campaign.totalLeads > 0
-        ? ((campaign.totalCustomers / campaign.totalLeads) * 100).toFixed(1)
-        : '0';
+  const budgetUsage = budget > 0
+    ? ((spent / budget) * 100).toFixed(0)
+    : null;
 
-    const budgetUsage = campaign.budget
-        ? ((campaign.spent / campaign.budget) * 100).toFixed(0)
-        : null;
+  const copyUtm = () => {
+    const utm = `utm_source=${campaign.utmSource || ''}&utm_medium=${campaign.utmMedium || ''}&utm_campaign=${campaign.utmCampaign}`;
+    navigator.clipboard.writeText(utm);
+  };
 
-    const copyUtm = () => {
-        const utm = `utm_source=${campaign.utmSource || ''}&utm_medium=${campaign.utmMedium || ''}&utm_campaign=${campaign.utmCampaign}`;
-        navigator.clipboard.writeText(utm);
-    };
+  return (
+    <div className="panel-content">
+      {/* Header */}
+      <div className="panel-header">
+        <div className="panel-title-row">
+          <h2 className="panel-title">{campaign.name}</h2>
+          <button className="panel-close" onClick={onClose}>
+            <IconX size={18} />
+          </button>
+        </div>
+        <div className="panel-utm">
+          <span className="mono">{campaign.utmCampaign}</span>
+          <button className="icon-btn" onClick={copyUtm} title="Copy UTM params">
+            <IconCopy size={14} />
+          </button>
+        </div>
+      </div>
 
-    return (
-        <div className="panel-content">
-            {/* Header */}
-            <div className="panel-header">
-                <div className="panel-title-row">
-                    <h2 className="panel-title">{campaign.name}</h2>
-                    <button className="panel-close" onClick={onClose}>
-                        <IconX size={18} />
-                    </button>
-                </div>
-                <div className="panel-utm">
-                    <span className="mono">{campaign.utmCampaign}</span>
-                    <button className="icon-btn" onClick={copyUtm} title="Copy UTM params">
-                        <IconCopy size={14} />
-                    </button>
-                </div>
+      {/* Key Metrics */}
+      <div className="metrics-section">
+        <h3 className="section-title">PERFORMANCE</h3>
+        <div className="metric-grid">
+          <div className="metric-box">
+            <span className="metric-label">ROAS</span>
+            <span className={`metric-value large mono ${Number(roas) >= 2 ? 'positive' : ''}`}>
+              {roas}x
+            </span>
+          </div>
+          <div className="metric-box">
+            <span className="metric-label">REVENUE</span>
+            <span className="metric-value large mono positive">
+              {formatCurrency(totalRevenue)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Funnel */}
+      <div className="metrics-section">
+        <h3 className="section-title">FUNNEL</h3>
+        <div className="funnel-mini">
+          <div className="funnel-step">
+            <span className="funnel-value mono">{totalVisitors.toLocaleString()}</span>
+            <span className="funnel-label">Visitors</span>
+          </div>
+          <div className="funnel-arrow">
+            <span className="funnel-rate mono">{visitorToLead}%</span>
+            →
+          </div>
+          <div className="funnel-step">
+            <span className="funnel-value mono">{totalLeads.toLocaleString()}</span>
+            <span className="funnel-label">Leads</span>
+          </div>
+          <div className="funnel-arrow">
+            <span className="funnel-rate mono">{leadToCustomer}%</span>
+            →
+          </div>
+          <div className="funnel-step">
+            <span className="funnel-value mono positive">{totalCustomers.toLocaleString()}</span>
+            <span className="funnel-label">Customers</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Costs */}
+      <div className="metrics-section">
+        <h3 className="section-title">COSTS</h3>
+        <div className="stat-rows">
+          {budget > 0 && (
+            <div className="stat-row">
+              <span className="stat-label">Budget</span>
+              <span className="stat-value mono">{formatCurrency(budget)}</span>
             </div>
-
-            {/* Key Metrics */}
-            <div className="metrics-section">
-                <h3 className="section-title">PERFORMANCE</h3>
-                <div className="metric-grid">
-                    <div className="metric-box">
-                        <span className="metric-label">ROAS</span>
-                        <span className={`metric-value large mono ${Number(roas) >= 2 ? 'positive' : ''}`}>
-                            {roas}x
-                        </span>
-                    </div>
-                    <div className="metric-box">
-                        <span className="metric-label">REVENUE</span>
-                        <span className="metric-value large mono positive">
-                            {formatCurrency(campaign.totalRevenue)}
-                        </span>
-                    </div>
-                </div>
+          )}
+          <div className="stat-row">
+            <span className="stat-label">Spent</span>
+            <span className="stat-value mono">
+              {formatCurrency(spent)}
+              {budgetUsage && <span className="stat-badge">{budgetUsage}%</span>}
+            </span>
+          </div>
+          {cpl > 0 && (
+            <div className="stat-row">
+              <span className="stat-label">Cost per Lead</span>
+              <span className="stat-value mono">{formatCurrency(cpl)}</span>
             </div>
-
-            {/* Funnel */}
-            <div className="metrics-section">
-                <h3 className="section-title">FUNNEL</h3>
-                <div className="funnel-mini">
-                    <div className="funnel-step">
-                        <span className="funnel-value mono">{campaign.totalVisitors.toLocaleString()}</span>
-                        <span className="funnel-label">Visitors</span>
-                    </div>
-                    <div className="funnel-arrow">
-                        <span className="funnel-rate mono">{visitorToLead}%</span>
-                        →
-                    </div>
-                    <div className="funnel-step">
-                        <span className="funnel-value mono">{campaign.totalLeads.toLocaleString()}</span>
-                        <span className="funnel-label">Leads</span>
-                    </div>
-                    <div className="funnel-arrow">
-                        <span className="funnel-rate mono">{leadToCustomer}%</span>
-                        →
-                    </div>
-                    <div className="funnel-step">
-                        <span className="funnel-value mono positive">{campaign.totalCustomers.toLocaleString()}</span>
-                        <span className="funnel-label">Customers</span>
-                    </div>
-                </div>
+          )}
+          {cpa > 0 && (
+            <div className="stat-row">
+              <span className="stat-label">Cost per Acquisition</span>
+              <span className="stat-value mono">{formatCurrency(cpa)}</span>
             </div>
+          )}
+        </div>
+      </div>
 
-            {/* Costs */}
-            <div className="metrics-section">
-                <h3 className="section-title">COSTS</h3>
-                <div className="stat-rows">
-                    {campaign.budget && (
-                        <div className="stat-row">
-                            <span className="stat-label">Budget</span>
-                            <span className="stat-value mono">{formatCurrency(campaign.budget)}</span>
-                        </div>
-                    )}
-                    <div className="stat-row">
-                        <span className="stat-label">Spent</span>
-                        <span className="stat-value mono">
-                            {formatCurrency(campaign.spent)}
-                            {budgetUsage && <span className="stat-badge">{budgetUsage}%</span>}
-                        </span>
-                    </div>
-                    {cpl > 0 && (
-                        <div className="stat-row">
-                            <span className="stat-label">Cost per Lead</span>
-                            <span className="stat-value mono">{formatCurrency(cpl)}</span>
-                        </div>
-                    )}
-                    {cpa > 0 && (
-                        <div className="stat-row">
-                            <span className="stat-label">Cost per Acquisition</span>
-                            <span className="stat-value mono">{formatCurrency(cpa)}</span>
-                        </div>
-                    )}
-                </div>
+      {/* UTM Parameters */}
+      <div className="metrics-section">
+        <h3 className="section-title">ATTRIBUTION</h3>
+        <div className="stat-rows">
+          {campaign.utmSource && (
+            <div className="stat-row">
+              <span className="stat-label">Source</span>
+              <span className="stat-value mono">{campaign.utmSource}</span>
             </div>
-
-            {/* UTM Parameters */}
-            <div className="metrics-section">
-                <h3 className="section-title">ATTRIBUTION</h3>
-                <div className="stat-rows">
-                    {campaign.utmSource && (
-                        <div className="stat-row">
-                            <span className="stat-label">Source</span>
-                            <span className="stat-value mono">{campaign.utmSource}</span>
-                        </div>
-                    )}
-                    {campaign.utmMedium && (
-                        <div className="stat-row">
-                            <span className="stat-label">Medium</span>
-                            <span className="stat-value mono">{campaign.utmMedium}</span>
-                        </div>
-                    )}
-                    <div className="stat-row">
-                        <span className="stat-label">Campaign</span>
-                        <span className="stat-value mono">{campaign.utmCampaign}</span>
-                    </div>
-                </div>
+          )}
+          {campaign.utmMedium && (
+            <div className="stat-row">
+              <span className="stat-label">Medium</span>
+              <span className="stat-value mono">{campaign.utmMedium}</span>
             </div>
+          )}
+          <div className="stat-row">
+            <span className="stat-label">Campaign</span>
+            <span className="stat-value mono">{campaign.utmCampaign}</span>
+          </div>
+        </div>
+      </div>
 
-            {/* Schedule */}
-            {(campaign.startsAt || campaign.endsAt) && (
-                <div className="metrics-section">
-                    <h3 className="section-title">
-                        <IconCalendar size={12} />
-                        SCHEDULE
-                    </h3>
-                    <div className="stat-rows">
-                        <div className="stat-row">
-                            <span className="stat-label">Start</span>
-                            <span className="stat-value mono">{formatDate(campaign.startsAt)}</span>
-                        </div>
-                        <div className="stat-row">
-                            <span className="stat-label">End</span>
-                            <span className="stat-value mono">{formatDate(campaign.endsAt)}</span>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Linked Landing Pages */}
-            {linkedPages.length > 0 && (
-                <div className="metrics-section">
-                    <h3 className="section-title">LANDING PAGES ({linkedPages.length})</h3>
-                    <div className="linked-pages">
-                        {linkedPages.map(page => (
-                            <div
-                                key={page.id}
-                                className="linked-page"
-                                onClick={() => onSelectPage?.(page)}
-                            >
-                                <div className="page-info">
-                                    <span className="page-name">{page.name}</span>
-                                    <span className="page-slug mono">/{page.slug}</span>
-                                </div>
-                                <div className="page-stats">
-                                    <span className="page-stat mono">{page.totalConversions} conv</span>
-                                    <span className="page-stat mono positive">{page.conversionRate.toFixed(1)}%</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Actions */}
-            <div className="panel-actions">
-                <button className="btn-primary">Edit Campaign</button>
-                <button className="btn-secondary">View Full Report</button>
+      {/* Schedule */}
+      {(campaign.startDate || campaign.endDate) && (
+        <div className="metrics-section">
+          <h3 className="section-title">
+            <IconCalendar size={12} />
+            SCHEDULE
+          </h3>
+          <div className="stat-rows">
+            <div className="stat-row">
+              <span className="stat-label">Start</span>
+              <span className="stat-value mono">{formatDate(campaign.startDate)}</span>
             </div>
+            <div className="stat-row">
+              <span className="stat-label">End</span>
+              <span className="stat-value mono">{formatDate(campaign.endDate)}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
-            <style jsx>{`
+      {/* Linked Landing Pages */}
+      {linkedPages.length > 0 && (
+        <div className="metrics-section">
+          <h3 className="section-title">LANDING PAGES ({linkedPages.length})</h3>
+          <div className="linked-pages">
+            {linkedPages.map(page => (
+              <div
+                key={page.id}
+                className="linked-page"
+                onClick={() => onSelectPage?.(page)}
+              >
+                <div className="page-info">
+                  <span className="page-name">{page.name}</span>
+                  <span className="page-slug mono">/{page.slug}</span>
+                </div>
+                <div className="page-stats">
+                  <span className="page-stat mono">{page.totalConversions} conv</span>
+                  <span className="page-stat mono positive">{page.conversionRate.toFixed(1)}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="panel-actions">
+        <button className="btn-primary">Edit Campaign</button>
+        <button className="btn-secondary">View Full Report</button>
+      </div>
+
+      <style jsx>{`
         .panel-content {
           display: flex;
           flex-direction: column;
@@ -487,7 +483,11 @@ export function CampaignStatsPanel({ campaign, linkedPages, onClose, onSelectPag
           border-color: var(--border-light);
           color: var(--text-primary);
         }
+        
+        .positive {
+          color: var(--positive);
+        }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }

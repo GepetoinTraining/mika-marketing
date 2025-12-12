@@ -36,7 +36,7 @@ export interface WorkspaceMember {
     id: string;
     workspaceId: string;
     userId: string;
-    role: 'owner' | 'admin' | 'manager' | 'editor' | 'viewer' | 'client';
+    role: 'owner' | 'admin' | 'manager' | 'editor' | 'viewer' | 'client' | 'visitor';
     workspace: Workspace;
 }
 
@@ -84,6 +84,7 @@ const roleHierarchy: Record<WorkspaceMember['role'], number> = {
     editor: 40,
     viewer: 20,
     client: 10,
+    visitor: 0,
 };
 
 // Permission requirements by role level

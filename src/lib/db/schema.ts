@@ -57,6 +57,7 @@ export const userRoleEnum = pgEnum('user_role', [
     'editor',     // Can edit content, not settings
     'viewer',     // Read-only access
     'client',     // Client portal access (limited)
+    'visitor',    // Support/no privileges
 ]);
 
 export const workspacePlanEnum = pgEnum('workspace_plan', [
@@ -277,7 +278,7 @@ export const workspaceMembers = pgTable('workspace_members', {
     userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
 
     // Role within this workspace
-    role: userRoleEnum('role').default('viewer'),
+    role: userRoleEnum('role').default('viewer').notNull(),
 
     // Permissions override (fine-grained)
     permissions: jsonb('permissions').default({}),

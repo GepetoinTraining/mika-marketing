@@ -3,69 +3,77 @@
 import { Lead } from '@/types';
 
 type Props = {
-    lead: Lead;
-    selected?: boolean;
-    onClick?: () => void;
+  lead: Lead;
+  selected?: boolean;
+  onClick?: () => void;
 };
 
 export function LeadCard({ lead, selected, onClick }: Props) {
-    const formatValue = (n: number) => {
-        if (n === 0) return '—';
-        return 'R$ ' + n.toLocaleString('pt-BR');
-    };
+  // Handle decimal strings from DB
+  const toNumber = (val: number | string): number => {
+    return typeof val === 'string' ? parseFloat(val) || 0 : val;
+  };
 
-    const getInitials = (name?: string, email?: string) => {
-        if (name) {
-            return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-        }
-        return email?.slice(0, 2).toUpperCase() || '??';
-    };
+  const formatValue = (n: number | string) => {
+    const num = toNumber(n);
+    if (num === 0) return '—';
+    return 'R$ ' + num.toLocaleString('pt-BR');
+  };
 
-    const getScoreColor = (score: number) => {
-        if (score >= 150) return 'var(--positive)';
-        if (score >= 100) return 'var(--warning)';
-        return 'var(--text-muted)';
-    };
+  const getInitials = (name?: string | null, email?: string) => {
+    if (name) {
+      return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+    }
+    return email?.slice(0, 2).toUpperCase() || '??';
+  };
 
-    return (
-        <div className="lead-card" data-selected={selected} onClick={onClick}>
-            <div className="lead-header">
-                <div className="lead-avatar" style={{ borderColor: getScoreColor(lead.totalScore) }}>
-                    {getInitials(lead.name, lead.email)}
-                </div>
-                <div className="lead-info">
-                    <div className="lead-name">{lead.name || 'Unknown'}</div>
-                    <div className="lead-email mono">{lead.email}</div>
-                </div>
-            </div>
+  const getScoreColor = (score: number) => {
+    if (score >= 150) return 'var(--positive)';
+    if (score >= 100) return 'var(--warning)';
+    return 'var(--text-muted)';
+  };
 
-            <div className="lead-meta">
-                <div className="meta-item">
-                    <span className="meta-label">SCORE</span>
-                    <span className="meta-value mono" style={{ color: getScoreColor(lead.totalScore) }}>
-                        {lead.totalScore}
-                    </span>
-                </div>
-                <div className="meta-item">
-                    <span className="meta-label">LTV</span>
-                    <span className={`meta-value mono ${lead.lifetimeValue > 0 ? 'positive' : ''}`}>
-                        {formatValue(lead.lifetimeValue)}
-                    </span>
-                </div>
-            </div>
+  const lifetimeValue = toNumber(lead.lifetimeValue);
 
-            {lead.tags.length > 0 && (
-                <div className="lead-tags">
-                    {lead.tags.slice(0, 3).map(tag => (
-                        <span key={tag} className="tag">{tag}</span>
-                    ))}
-                    {lead.tags.length > 3 && (
-                        <span className="tag tag-more">+{lead.tags.length - 3}</span>
-                    )}
-                </div>
-            )}
+  return (
+    <div className="lead-card" data-selected={selected} onClick={onClick}>
+      <div className="lead-header">
+        <div className="lead-avatar" style={{ borderColor: getScoreColor(lead.totalScore) }}>
+          {getInitials(lead.name, lead.email)}
+        </div>
+        <div className="lead-info">
+          <div className="lead-name">{lead.name || 'Unknown'}</div>
+          <div className="lead-email mono">{lead.email}</div>
+        </div>
+      </div>
 
-            <style jsx>{`
+      <div className="lead-meta">
+        <div className="meta-item">
+          <span className="meta-label">SCORE</span>
+          <span className="meta-value mono" style={{ color: getScoreColor(lead.totalScore) }}>
+            {lead.totalScore}
+          </span>
+        </div>
+        <div className="meta-item">
+          <span className="meta-label">LTV</span>
+          <span className={`meta-value mono ${lifetimeValue > 0 ? 'positive' : ''}`}>
+            {formatValue(lead.lifetimeValue)}
+          </span>
+        </div>
+      </div>
+
+      {lead.tags.length > 0 && (
+        <div className="lead-tags">
+          {lead.tags.slice(0, 3).map(tag => (
+            <span key={tag} className="tag">{tag}</span>
+          ))}
+          {lead.tags.length > 3 && (
+            <span className="tag tag-more">+{lead.tags.length - 3}</span>
+          )}
+        </div>
+      )}
+
+      <style jsx>{`
         .lead-card {
           background: var(--bg-tertiary);
           border: 1px solid var(--border);
@@ -171,6 +179,6 @@ export function LeadCard({ lead, selected, onClick }: Props) {
           color: var(--text-muted);
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }

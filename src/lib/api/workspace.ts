@@ -4,7 +4,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { headers, cookies } from 'next/headers';
 import { db } from '@/lib/db';
-import { users, workspaces, workspaceMembers } from '@/schema/complete-v3';
+import { users, workspaces, workspaceMembers } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
 export interface WorkspaceContext {
@@ -12,7 +12,7 @@ export interface WorkspaceContext {
         id: string;
         clerkId: string;
         email: string;
-        globalRole: string;
+        globalRole: 'owner' | 'admin' | 'manager' | 'editor' | 'viewer' | 'client' | 'visitor' | null;
     };
     workspace: {
         id: string;

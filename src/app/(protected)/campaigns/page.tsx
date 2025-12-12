@@ -6,7 +6,8 @@ import { Shell } from '@/components/Shell';
 import { CampaignRow } from '@/components/CampaignRow';
 import { CampaignTimeline } from '@/components/CampaignTimeline';
 import { CampaignStatsPanel } from '@/components/CampaignStatsPanel';
-import { useCampaigns, type CampaignWithPerformance, type LandingPage } from '@/lib/queries/campaigns';
+import { useCampaigns, type CampaignWithPerformance } from '@/lib/queries/campaigns';
+import { type LandingPage } from '@/types';
 import { useWorkspace } from '@/lib/workspace/context';
 import { IconPlus, IconList, IconCalendar, IconLoader2 } from '@tabler/icons-react';
 
@@ -28,6 +29,10 @@ export default function CampaignsPage() {
     if (filter === 'draft') return campaign.status === 'draft' || campaign.status === 'scheduled';
     return campaign.status === filter;
   });
+  const toNumber = (val: number | string | null | undefined): number => {
+    if (val === null || val === undefined) return 0;
+    return typeof val === 'string' ? parseFloat(val) || 0 : val;
+  };
 
   const counts = {
     all: campaigns.length,
@@ -41,8 +46,8 @@ export default function CampaignsPage() {
   const linkedPages: LandingPage[] = [];
 
   // Summary stats
-  const totalSpent = campaigns.reduce((sum, c) => sum + (c.spent || 0), 0);
-  const totalRevenue = campaigns.reduce((sum, c) => sum + (c.totalRevenue || 0), 0);
+  const totalSpent = campaigns.reduce((sum, c) => sum + toNumber(c.spent), 0);
+  const totalRevenue = campaigns.reduce((sum, c) => sum + toNumber(c.totalRevenue), 0);
   const overallRoas = totalSpent > 0 ? (totalRevenue / totalSpent).toFixed(2) : '—';
 
   // Loading state

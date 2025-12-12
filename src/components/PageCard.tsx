@@ -3,70 +3,71 @@
 import { LandingPage } from '@/types';
 
 type Props = {
-    page: LandingPage;
-    selected?: boolean;
-    onClick?: () => void;
+  page: LandingPage;
+  selected?: boolean;
+  onClick?: () => void;
 };
 
-const STATUS_MAP = {
-    draft: { label: 'DRAFT', color: 'var(--text-muted)' },
-    testing: { label: 'A/B TEST', color: 'var(--warning)' },
-    active: { label: 'LIVE', color: 'var(--positive)' },
-    paused: { label: 'PAUSED', color: 'var(--text-secondary)' },
-    archived: { label: 'ARCHIVED', color: 'var(--text-muted)' },
+// Matches pageStatusEnum in schema
+const STATUS_MAP: Record<LandingPage['status'], { label: string; color: string }> = {
+  draft: { label: 'DRAFT', color: 'var(--text-muted)' },
+  published: { label: 'LIVE', color: 'var(--positive)' },
+  testing: { label: 'A/B TEST', color: 'var(--warning)' },
+  paused: { label: 'PAUSED', color: 'var(--text-secondary)' },
+  archived: { label: 'ARCHIVED', color: 'var(--text-muted)' },
 };
 
 export function PageCard({ page, selected, onClick }: Props) {
-    const status = STATUS_MAP[page.status];
+  const status = STATUS_MAP[page.status];
 
-    const formatNumber = (n: number) => {
-        if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
-        return n.toString();
-    };
+  const formatNumber = (n: number) => {
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+    return n.toString();
+  };
 
-    const formatPercent = (n: number) => n.toFixed(1) + '%';
+  const formatPercent = (n: number) => n.toFixed(1) + '%';
 
-    return (
-        <div className="card" data-selected={selected} onClick={onClick}>
-            {/* Header */}
-            <div className="card-header">
-                <div className="card-status" style={{ color: status.color }}>
-                    <span className="status-dot" style={{ background: status.color }} />
-                    {status.label}
-                    {page.isVariant && <span className="variant-badge">{page.variantName}</span>}
-                </div>
-                <div className="card-slug mono">/{page.slug}</div>
-            </div>
+  return (
+    <div className="card" data-selected={selected} onClick={onClick}>
+      {/* Header */}
+      <div className="card-header">
+        <div className="card-status" style={{ color: status.color }}>
+          <span className="status-dot" style={{ background: status.color }} />
+          {status.label}
+          {page.isVariant && <span className="variant-badge">{page.variantName}</span>}
+        </div>
+        <div className="card-slug mono">/{page.slug}</div>
+      </div>
 
-            {/* Title */}
-            <h3 className="card-title">{page.name}</h3>
-            {page.headline && <p className="card-headline">{page.headline}</p>}
+      {/* Title */}
+      <h3 className="card-title">{page.name}</h3>
+      {page.headline && <p className="card-headline">{page.headline}</p>}
 
-            {/* Metrics Grid */}
-            <div className="card-metrics">
-                <div className="metric-item">
-                    <span className="metric-label">VISITORS</span>
-                    <span className="metric-value mono">{formatNumber(page.uniqueVisitors)}</span>
-                </div>
-                <div className="metric-item">
-                    <span className="metric-label">CONVERTS</span>
-                    <span className="metric-value mono">{formatNumber(page.totalConversions)}</span>
-                </div>
-                <div className="metric-item">
-                    <span className="metric-label">CVR</span>
-                    <span className={`metric-value mono ${page.conversionRate >= 10 ? 'positive' : ''}`}>
-                        {formatPercent(page.conversionRate)}
-                    </span>
-                </div>
-                <div className="metric-item">
-                    <span className="metric-label">BOUNCE</span>
-                    <span className={`metric-value mono ${page.bounceRate <= 35 ? 'positive' : page.bounceRate >= 50 ? 'negative' : ''}`}>
-                        {formatPercent(page.bounceRate)}
-                    </span>
-                </div>
-            </div>
+      {/* Metrics Grid */}
+      <div className="card-metrics">
+        <div className="metric-item">
+          <span className="metric-label">VISITORS</span>
+          <span className="metric-value mono">{formatNumber(page.uniqueVisitors)}</span>
+        </div>
+        <div className="metric-item">
+          <span className="metric-label">CONVERTS</span>
+          <span className="metric-value mono">{formatNumber(page.totalConversions)}</span>
+        </div>
+        <div className="metric-item">
+          <span className="metric-label">CVR</span>
+          <span className={`metric-value mono ${page.conversionRate >= 10 ? 'positive' : ''}`}>
+            {formatPercent(page.conversionRate)}
+          </span>
+        </div>
+        <div className="metric-item">
+          <span className="metric-label">BOUNCE</span>
+          <span className={`metric-value mono ${page.bounceRate <= 35 ? 'positive' : page.bounceRate >= 50 ? 'negative' : ''}`}>
+            {formatPercent(page.bounceRate)}
+          </span>
+        </div>
+      </div>
 
-            <style jsx>{`
+      <style jsx>{`
         .card {
           background: var(--bg-secondary);
           border: 1px solid var(--border);
@@ -160,6 +161,6 @@ export function PageCard({ page, selected, onClick }: Props) {
           color: var(--text-primary);
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }

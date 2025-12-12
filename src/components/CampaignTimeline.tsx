@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { CampaignWithPerformance, DailyPerformance } from '@/lib/mock-data';
+import { CampaignWithPerformance, DailyPerformance } from '@/types';
+import { toNumber } from '@/lib/utils/convert';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { MetricTooltip } from './MetricTooltip';
 
@@ -13,7 +14,7 @@ type Props = {
 
 type ViewMode = 'month' | 'quarter';
 
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<string, string> = {
   draft: 'var(--text-muted)',
   scheduled: 'var(--neutral)',
   active: 'var(--positive)',
@@ -22,9 +23,15 @@ const STATUS_COLORS = {
   archived: 'var(--text-muted)',
 };
 
+// Calculate conversion rate from daily performance
+function getConversionRate(day: DailyPerformance): number {
+  if (day.visitors === 0) return 0;
+  return (day.leads / day.visitors) * 100;
+}
+
 export function CampaignTimeline({ campaigns, onSelectCampaign, selectedCampaignId }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('month');
-  const [currentDate, setCurrentDate] = useState(new Date('2024-11-15')); // Start in Nov for mock data
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   // Calculate date range based on view mode
   const { startDate, endDate, days } = useMemo(() => {
@@ -62,6 +69,7 @@ export function CampaignTimeline({ campaigns, onSelectCampaign, selectedCampaign
 
   // Get performance color based on conversion rate
   const getPerformanceColor = (cvr: number, maxCvr: number) => {
+    if (maxCvr === 0) return 'var(--text-muted)';
     const ratio = cvr / maxCvr;
     if (ratio >= 0.8) return 'var(--positive)';
     if (ratio >= 0.6) return 'var(--accent-dim)';
@@ -72,6 +80,7 @@ export function CampaignTimeline({ campaigns, onSelectCampaign, selectedCampaign
 
   // Get performance opacity based on volume
   const getPerformanceOpacity = (visitors: number, maxVisitors: number) => {
+    if (maxVisitors === 0) return 0.3;
     return Math.max(0.3, visitors / maxVisitors);
   };
 
@@ -99,10 +108,10 @@ export function CampaignTimeline({ campaigns, onSelectCampaign, selectedCampaign
 
   // Get campaign position and width
   const getCampaignStyle = (campaign: CampaignWithPerformance) => {
-    if (!campaign.startsAt || !campaign.endsAt) return null;
+    if (!campaign.startDate || !campaign.endDate) return null;
 
-    const campStart = new Date(campaign.startsAt);
-    const campEnd = new Date(campaign.endsAt);
+    const campStart = new Date(campaign.startDate);
+    const campEnd = new Date(campaign.endDate);
 
     // Check if campaign is visible in current range
     if (campEnd < startDate || campStart > endDate) return null;
@@ -122,7 +131,7 @@ export function CampaignTimeline({ campaigns, onSelectCampaign, selectedCampaign
 
   // Get daily performance for a campaign within the visible range
   const getVisiblePerformance = (campaign: CampaignWithPerformance) => {
-    if (!campaign.dailyPerformance.length) return [];
+    if (!campaign.dailyPerformance?.length) return [];
 
     return campaign.dailyPerformance.filter(day => {
       const date = new Date(day.date);
@@ -134,8 +143,9 @@ export function CampaignTimeline({ campaigns, onSelectCampaign, selectedCampaign
   const maxCvr = useMemo(() => {
     let max = 0;
     campaigns.forEach(c => {
-      c.dailyPerformance.forEach(d => {
-        if (d.conversionRate > max) max = d.conversionRate;
+      c.dailyPerformance?.forEach(d => {
+        const cvr = getConversionRate(d);
+        if (cvr > max) max = cvr;
       });
     });
     return max || 10;
@@ -145,7 +155,7 @@ export function CampaignTimeline({ campaigns, onSelectCampaign, selectedCampaign
   const maxVisitors = useMemo(() => {
     let max = 0;
     campaigns.forEach(c => {
-      c.dailyPerformance.forEach(d => {
+      c.dailyPerformance?.forEach(d => {
         if (d.visitors > max) max = d.visitors;
       });
     });
@@ -248,7 +258,7 @@ export function CampaignTimeline({ campaigns, onSelectCampaign, selectedCampaign
                 <div className="campaign-label">
                   <span
                     className="campaign-status-dot"
-                    style={{ background: STATUS_COLORS[campaign.status] }}
+                    style={{ background: STATUS_COLORS[campaign.status] || 'var(--text-muted)' }}
                   />
                   <span className="campaign-name">{campaign.name}</span>
                 </div>
@@ -271,34 +281,37 @@ export function CampaignTimeline({ campaigns, onSelectCampaign, selectedCampaign
                   >
                     {performance.length > 0 ? (
                       <div className="performance-segments">
-                        {performance.map((day, i) => (
-                          <MetricTooltip
-                            key={i}
-                            context="timeline-segment"
-                            title={campaign.name}
-                            subtitle={day.date}
-                            data={{
-                              conversionRate: day.conversionRate,
-                              visitors: day.visitors,
-                              conversions: day.conversions,
-                              leads: day.leads,
-                              revenue: day.revenue,
-                            }}
-                            maxValues={{
-                              conversionRate: maxCvr,
-                              visitors: maxVisitors,
-                            }}
-                            position="top"
-                          >
-                            <div
-                              className="segment"
-                              style={{
-                                background: getPerformanceColor(day.conversionRate, maxCvr),
-                                opacity: getPerformanceOpacity(day.visitors, maxVisitors),
+                        {performance.map((day, i) => {
+                          const cvr = getConversionRate(day);
+                          const revenue = toNumber(day.revenue);
+                          return (
+                            <MetricTooltip
+                              key={i}
+                              context="timeline-segment"
+                              title={campaign.name}
+                              subtitle={day.date}
+                              data={{
+                                conversionRate: cvr,
+                                visitors: day.visitors,
+                                leads: day.leads,
+                                revenue: revenue,
                               }}
-                            />
-                          </MetricTooltip>
-                        ))}
+                              maxValues={{
+                                conversionRate: maxCvr,
+                                visitors: maxVisitors,
+                              }}
+                              position="top"
+                            >
+                              <div
+                                className="segment"
+                                style={{
+                                  background: getPerformanceColor(cvr, maxCvr),
+                                  opacity: getPerformanceOpacity(day.visitors, maxVisitors),
+                                }}
+                              />
+                            </MetricTooltip>
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="bar-empty">
@@ -567,46 +580,6 @@ export function CampaignTimeline({ campaigns, onSelectCampaign, selectedCampaign
         
         .segment:hover {
           opacity: 1 !important;
-        }
-        
-        .segment-tooltip {
-          display: none;
-          position: absolute;
-          bottom: calc(100% + 8px);
-          left: 50%;
-          transform: translateX(-50%);
-          background: var(--bg-primary);
-          border: 1px solid var(--border);
-          padding: 8px 12px;
-          white-space: nowrap;
-          z-index: 100;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
-        
-        .segment:hover .segment-tooltip {
-          display: block;
-        }
-        
-        .tooltip-date {
-          font-size: 10px;
-          color: var(--text-muted);
-          margin-bottom: 6px;
-        }
-        
-        .tooltip-stat {
-          display: flex;
-          justify-content: space-between;
-          gap: 12px;
-          font-size: 11px;
-        }
-        
-        .tooltip-value {
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-        
-        .tooltip-label {
-          color: var(--text-muted);
         }
         
         .bar-empty {

@@ -29,19 +29,21 @@ export async function GET(request: NextRequest, { params }: Params) {
         });
 
         if (!lead) {
-            // Still redirect, but log as anonymous click
-            console.warn(`Redirect: Lead ${leadId} not found, redirecting anyway`);
+            // No lead = no workspace context, can't log event
+            console.warn(`Redirect: Lead ${leadId} not found, skipping event log`);
+            return NextResponse.redirect(dest, { status: 302 });
         }
 
         // Log the click event
         await db.insert(schema.events).values({
+            workspaceId: lead.workspaceId,
+            visitorId: lead.visitorId ?? '',
             type: 'click',
             name: 'affiliate_redirect',
-            leadId: lead ? leadId : undefined,
-            visitorId: lead?.visitorId,
-            campaignId: campaignId || undefined,
-            landingPageId: landingPageId || undefined,
-            pageUrl: dest,
+            leadId: leadId,
+            campaignId: campaignId ?? null,
+            landingPageId: landingPageId ?? null,
+            url: dest,
             metadata: {
                 affiliateId,
                 destinationUrl: dest,
@@ -50,12 +52,12 @@ export async function GET(request: NextRequest, { params }: Params) {
         });
 
         // Update lead's last touch attribution if we have campaign info
-        if (lead && campaignId) {
+        if (campaignId) {
             await db.update(schema.leads)
                 .set({
-                    lastSource: searchParams.get('src') || undefined,
-                    lastMedium: searchParams.get('med') || 'affiliate',
-                    lastCampaign: campaignId,
+                    lastSource: searchParams.get('src') ?? null,
+                    lastMedium: searchParams.get('med') ?? 'affiliate',
+                    lastCampaignId: campaignId,
                     updatedAt: new Date(),
                 })
                 .where(eq(schema.leads.id, leadId));

@@ -4,7 +4,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { workspaces, workspaceMembers, users, brandSettings } from '@/schema';
+import { workspaces, workspaceMembers, users, brandSettings } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
 type RouteParams = {

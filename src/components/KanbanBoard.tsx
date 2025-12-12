@@ -10,6 +10,7 @@ type Stage = {
   color: string;
 };
 
+// Matches leadStageEnum in schema (no 'anonymous' or 'repeat')
 const STAGES: Stage[] = [
   { id: 'captured', label: 'Captured', color: 'var(--neutral)' },
   { id: 'engaged', label: 'Engaged', color: 'var(--warning)' },
@@ -26,12 +27,17 @@ type Props = {
 };
 
 export function KanbanBoard({ leads, selectedLead, onSelectLead, onLeadStageChange }: Props) {
+  // Helper to safely convert decimal strings to numbers
+  const toNumber = (val: number | string): number => {
+    return typeof val === 'string' ? parseFloat(val) || 0 : val;
+  };
+
   const getLeadsByStage = (stage: Lead['stage']) => {
     return leads.filter(lead => lead.stage === stage);
   };
 
-  const formatValue = (leads: Lead[]) => {
-    const total = leads.reduce((sum, l) => sum + l.lifetimeValue, 0);
+  const formatValue = (stageLeads: Lead[]) => {
+    const total = stageLeads.reduce((sum, l) => sum + toNumber(l.lifetimeValue), 0);
     if (total === 0) return null;
     return 'R$ ' + total.toLocaleString('pt-BR');
   };

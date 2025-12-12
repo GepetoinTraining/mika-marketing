@@ -7,234 +7,234 @@ import { TooltipContext, MetricKey } from '@/types/config';
 import { IconSettings, IconGripVertical } from '@tabler/icons-react';
 
 type MetricData = {
-    [K in MetricKey]?: number;
+  [K in MetricKey]?: number;
 };
 
 type Props = {
-    children: ReactNode;
-    context: TooltipContext;
-    data: MetricData;
-    title?: string;
-    subtitle?: string;
-    maxValues?: Partial<MetricData>; // For calculating colors
-    position?: 'top' | 'bottom' | 'left' | 'right';
-    showConfigButton?: boolean;
+  children: ReactNode;
+  context: TooltipContext;
+  data: MetricData;
+  title?: string;
+  subtitle?: string;
+  maxValues?: Partial<MetricData>; // For calculating colors
+  position?: 'top' | 'bottom' | 'left' | 'right';
+  showConfigButton?: boolean;
 };
 
 export function MetricTooltip({
-    children,
-    context,
-    data,
-    title,
-    subtitle,
-    maxValues = {},
-    position = 'top',
-    showConfigButton = true,
+  children,
+  context,
+  data,
+  title,
+  subtitle,
+  maxValues = {},
+  position = 'top',
+  showConfigButton = true,
 }: Props) {
-    const { config, updateTooltipConfig } = useConfig();
-    const [isVisible, setIsVisible] = useState(false);
-    const [isConfiguring, setIsConfiguring] = useState(false);
-    const [localMetrics, setLocalMetrics] = useState<MetricKey[]>([]);
-    const tooltipRef = useRef<HTMLDivElement>(null);
-    const timeoutRef = useRef<NodeJS.Timeout>();
+  const { config, updateTooltipConfig } = useConfig();
+  const [isVisible, setIsVisible] = useState(false);
+  const [isConfiguring, setIsConfiguring] = useState(false);
+  const [localMetrics, setLocalMetrics] = useState<MetricKey[]>([]);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    const metrics = config.tooltips[context] || [];
+  const metrics = config.tooltips[context] || [];
 
-    useEffect(() => {
-        setLocalMetrics(metrics);
-    }, [metrics, isConfiguring]);
+  useEffect(() => {
+    setLocalMetrics(metrics);
+  }, [metrics, isConfiguring]);
 
-    const handleMouseEnter = () => {
-        timeoutRef.current = setTimeout(() => {
-            setIsVisible(true);
-        }, 200); // Small delay to prevent flicker
-    };
+  const handleMouseEnter = () => {
+    timeoutRef.current = setTimeout(() => {
+      setIsVisible(true);
+    }, 200); // Small delay to prevent flicker
+  };
 
-    const handleMouseLeave = () => {
-        if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
-        }
-        if (!isConfiguring) {
-            setIsVisible(false);
-        }
-    };
+  const handleMouseLeave = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    if (!isConfiguring) {
+      setIsVisible(false);
+    }
+  };
 
-    const handleSaveConfig = () => {
-        updateTooltipConfig(context, localMetrics);
-        setIsConfiguring(false);
-    };
+  const handleSaveConfig = () => {
+    updateTooltipConfig(context, localMetrics);
+    setIsConfiguring(false);
+  };
 
-    const toggleMetric = (key: MetricKey) => {
-        setLocalMetrics(prev =>
-            prev.includes(key)
-                ? prev.filter(k => k !== key)
-                : [...prev, key]
-        );
-    };
+  const toggleMetric = (key: MetricKey) => {
+    setLocalMetrics(prev =>
+      prev.includes(key)
+        ? prev.filter(k => k !== key)
+        : [...prev, key]
+    );
+  };
 
-    const moveMetric = (index: number, direction: 'up' | 'down') => {
-        const newIndex = direction === 'up' ? index - 1 : index + 1;
-        if (newIndex < 0 || newIndex >= localMetrics.length) return;
+  const moveMetric = (index: number, direction: 'up' | 'down') => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= localMetrics.length) return;
 
-        const newMetrics = [...localMetrics];
-        [newMetrics[index], newMetrics[newIndex]] = [newMetrics[newIndex], newMetrics[index]];
-        setLocalMetrics(newMetrics);
-    };
+    const newMetrics = [...localMetrics];
+    [newMetrics[index], newMetrics[newIndex]] = [newMetrics[newIndex], newMetrics[index]];
+    setLocalMetrics(newMetrics);
+  };
 
-    // Group available metrics by category
-    const metricsByCategory = Object.values(METRIC_DEFINITIONS).reduce((acc, metric) => {
-        if (!acc[metric.category]) acc[metric.category] = [];
-        acc[metric.category].push(metric);
-        return acc;
-    }, {} as Record<string, typeof METRIC_DEFINITIONS[MetricKey][]>);
+  // Group available metrics by category
+  const metricsByCategory = Object.values(METRIC_DEFINITIONS).reduce((acc, metric) => {
+    if (!acc[metric.category]) acc[metric.category] = [];
+    acc[metric.category].push(metric);
+    return acc;
+  }, {} as Record<string, typeof METRIC_DEFINITIONS[MetricKey][]>);
 
-    return (
+  return (
+    <div
+      className="tooltip-wrapper"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {children}
+
+      {isVisible && (
         <div
-            className="tooltip-wrapper"
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
+          ref={tooltipRef}
+          className={`tooltip tooltip-${position}`}
+          onClick={e => e.stopPropagation()}
         >
-            {children}
-
-            {isVisible && (
-                <div
-                    ref={tooltipRef}
-                    className={`tooltip tooltip-${position}`}
-                    onClick={e => e.stopPropagation()}
-                >
-                    {!isConfiguring ? (
-                        <>
-                            {/* Header */}
-                            {(title || showConfigButton) && (
-                                <div className="tooltip-header">
-                                    <div className="tooltip-title-group">
-                                        {title && <div className="tooltip-title">{title}</div>}
-                                        {subtitle && <div className="tooltip-subtitle mono">{subtitle}</div>}
-                                    </div>
-                                    {showConfigButton && (
-                                        <button
-                                            className="config-btn"
-                                            onClick={() => setIsConfiguring(true)}
-                                            title="Configure tooltip"
-                                        >
-                                            <IconSettings size={14} />
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Metrics */}
-                            <div className="tooltip-metrics">
-                                {metrics.map(key => {
-                                    const def = METRIC_DEFINITIONS[key];
-                                    const value = data[key];
-                                    const maxValue = maxValues[key];
-
-                                    if (!def || value === undefined) return null;
-
-                                    return (
-                                        <div key={key} className="tooltip-metric">
-                                            <span className="metric-label">{def.shortLabel}</span>
-                                            <span
-                                                className="metric-value mono"
-                                                style={{ color: getMetricColor(value, key, { max: maxValue }) }}
-                                            >
-                                                {formatMetricValue(value, def.format)}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-
-                                {metrics.length === 0 && (
-                                    <div className="tooltip-empty">
-                                        Click <IconSettings size={12} /> to add metrics
-                                    </div>
-                                )}
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            {/* Config Mode */}
-                            <div className="tooltip-header">
-                                <div className="tooltip-title">Configure Metrics</div>
-                                <button
-                                    className="config-btn save"
-                                    onClick={handleSaveConfig}
-                                >
-                                    Save
-                                </button>
-                            </div>
-
-                            {/* Selected metrics - draggable order */}
-                            <div className="config-section">
-                                <div className="config-section-title">SHOWING ({localMetrics.length})</div>
-                                <div className="config-selected">
-                                    {localMetrics.map((key, index) => {
-                                        const def = METRIC_DEFINITIONS[key];
-                                        return (
-                                            <div key={key} className="config-item selected">
-                                                <IconGripVertical size={12} className="drag-handle" />
-                                                <span className="config-item-label">{def.label}</span>
-                                                <div className="config-item-actions">
-                                                    <button
-                                                        className="move-btn"
-                                                        onClick={() => moveMetric(index, 'up')}
-                                                        disabled={index === 0}
-                                                    >
-                                                        ↑
-                                                    </button>
-                                                    <button
-                                                        className="move-btn"
-                                                        onClick={() => moveMetric(index, 'down')}
-                                                        disabled={index === localMetrics.length - 1}
-                                                    >
-                                                        ↓
-                                                    </button>
-                                                    <button
-                                                        className="remove-btn"
-                                                        onClick={() => toggleMetric(key)}
-                                                    >
-                                                        ×
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            {/* Available metrics by category */}
-                            <div className="config-section">
-                                <div className="config-section-title">AVAILABLE</div>
-                                <div className="config-available">
-                                    {Object.entries(metricsByCategory).map(([category, categoryMetrics]) => (
-                                        <div key={category} className="config-category">
-                                            <div className="category-title">{category}</div>
-                                            <div className="category-metrics">
-                                                {categoryMetrics
-                                                    .filter(m => !localMetrics.includes(m.key))
-                                                    .map(metric => (
-                                                        <button
-                                                            key={metric.key}
-                                                            className="config-item available"
-                                                            onClick={() => toggleMetric(metric.key)}
-                                                        >
-                                                            <span className="config-item-label">{metric.shortLabel}</span>
-                                                            <span className="add-icon">+</span>
-                                                        </button>
-                                                    ))
-                                                }
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </>
-                    )}
+          {!isConfiguring ? (
+            <>
+              {/* Header */}
+              {(title || showConfigButton) && (
+                <div className="tooltip-header">
+                  <div className="tooltip-title-group">
+                    {title && <div className="tooltip-title">{title}</div>}
+                    {subtitle && <div className="tooltip-subtitle mono">{subtitle}</div>}
+                  </div>
+                  {showConfigButton && (
+                    <button
+                      className="config-btn"
+                      onClick={() => setIsConfiguring(true)}
+                      title="Configure tooltip"
+                    >
+                      <IconSettings size={14} />
+                    </button>
+                  )}
                 </div>
-            )}
+              )}
 
-            <style jsx>{`
+              {/* Metrics */}
+              <div className="tooltip-metrics">
+                {metrics.map(key => {
+                  const def = METRIC_DEFINITIONS[key];
+                  const value = data[key];
+                  const maxValue = maxValues[key];
+
+                  if (!def || value === undefined) return null;
+
+                  return (
+                    <div key={key} className="tooltip-metric">
+                      <span className="metric-label">{def.shortLabel}</span>
+                      <span
+                        className="metric-value mono"
+                        style={{ color: getMetricColor(value, key, { max: maxValue }) }}
+                      >
+                        {formatMetricValue(value, def.format)}
+                      </span>
+                    </div>
+                  );
+                })}
+
+                {metrics.length === 0 && (
+                  <div className="tooltip-empty">
+                    Click <IconSettings size={12} /> to add metrics
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Config Mode */}
+              <div className="tooltip-header">
+                <div className="tooltip-title">Configure Metrics</div>
+                <button
+                  className="config-btn save"
+                  onClick={handleSaveConfig}
+                >
+                  Save
+                </button>
+              </div>
+
+              {/* Selected metrics - draggable order */}
+              <div className="config-section">
+                <div className="config-section-title">SHOWING ({localMetrics.length})</div>
+                <div className="config-selected">
+                  {localMetrics.map((key, index) => {
+                    const def = METRIC_DEFINITIONS[key];
+                    return (
+                      <div key={key} className="config-item selected">
+                        <IconGripVertical size={12} className="drag-handle" />
+                        <span className="config-item-label">{def.label}</span>
+                        <div className="config-item-actions">
+                          <button
+                            className="move-btn"
+                            onClick={() => moveMetric(index, 'up')}
+                            disabled={index === 0}
+                          >
+                            ↑
+                          </button>
+                          <button
+                            className="move-btn"
+                            onClick={() => moveMetric(index, 'down')}
+                            disabled={index === localMetrics.length - 1}
+                          >
+                            ↓
+                          </button>
+                          <button
+                            className="remove-btn"
+                            onClick={() => toggleMetric(key)}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Available metrics by category */}
+              <div className="config-section">
+                <div className="config-section-title">AVAILABLE</div>
+                <div className="config-available">
+                  {Object.entries(metricsByCategory).map(([category, categoryMetrics]) => (
+                    <div key={category} className="config-category">
+                      <div className="category-title">{category}</div>
+                      <div className="category-metrics">
+                        {categoryMetrics
+                          .filter(m => !localMetrics.includes(m.key))
+                          .map(metric => (
+                            <button
+                              key={metric.key}
+                              className="config-item available"
+                              onClick={() => toggleMetric(metric.key)}
+                            >
+                              <span className="config-item-label">{metric.shortLabel}</span>
+                              <span className="add-icon">+</span>
+                            </button>
+                          ))
+                        }
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      <style jsx>{`
         .tooltip-wrapper {
           position: relative;
           display: inline-flex;
@@ -473,6 +473,6 @@ export function MetricTooltip({
           gap: 4px;
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }
