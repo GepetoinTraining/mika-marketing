@@ -1,0 +1,46 @@
+{
+  "name": "mika-marketing",
+  "version": "1.0.0",
+  "description": "Full-funnel marketing analytics platform",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@clerk/localizations": "^3.30.1",
+    "@clerk/nextjs": "^6.36.2",
+    "@google/genai": "^1.33.0",
+    "@hello-pangea/dnd": "^18.0.1",
+    "@mantine/core": "^8.3.10",
+    "@mantine/form": "^8.3.10",
+    "@mantine/hooks": "^8.3.10",
+    "@mantine/notifications": "^8.3.10",
+    "@tabler/icons-react": "^3.35.0",
+    "@tanstack/react-query": "^5.90.12",
+    "@types/node": "^25.0.1",
+    "@types/react": "^19.2.7",
+    "drizzle-orm": "^0.45.1",
+    "js-cookie": "^3.0.5",
+    "next": "^16.0.10",
+    "pgvector": "^0.2.1",
+    "postgres": "^3.4.7",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "svix": "^1.82.0",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/js-cookie": "^3.0.6",
+    "drizzle-kit": "^0.31.8"
+  }
+}

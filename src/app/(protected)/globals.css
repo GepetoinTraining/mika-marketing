@@ -1,0 +1,143 @@
+:root {
+    /* Brutalist palette */
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #111111;
+    --bg-tertiary: #1a1a1a;
+    --bg-hover: #222222;
+
+    --border: #2a2a2a;
+    --border-light: #333333;
+
+    --text-primary: #e5e5e5;
+    --text-secondary: #888888;
+    --text-muted: #555555;
+
+    /* Accent - raw green for positive */
+    --accent: #00ff88;
+    --accent-dim: #00cc6a;
+
+    /* Status */
+    --positive: #00ff88;
+    --negative: #ff4444;
+    --warning: #ffaa00;
+    --neutral: #888888;
+
+    /* Typography */
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+    --font-sans: 'Inter', -apple-system, sans-serif;
+
+    /* Spacing */
+    --nav-width: 48px;
+    --nav-width-expanded: 200px;
+    --panel-width: 320px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Monospace for all numbers */
+.mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Status colors */
+.positive {
+    color: var(--positive);
+}
+
+.negative {
+    color: var(--negative);
+}
+
+.warning {
+    color: var(--warning);
+}
+
+.muted {
+    color: var(--text-muted);
+}
+
+/* Dense data display */
+.metric {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: -0.02em;
+}
+
+.metric-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.metric-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.metric-value.large {
+    font-size: 32px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border-light);
+}
+
+/* Drag and Drop */
+.column-cards {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-top: none;
+    overflow-y: auto;
+    transition: background 0.15s ease;
+}
+
+.column-cards.dragging-over {
+    background: rgba(0, 255, 136, 0.03);
+    border-color: var(--accent);
+}
+
+.draggable-card {
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.draggable-card.is-dragging {
+    transform: rotate(2deg);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
